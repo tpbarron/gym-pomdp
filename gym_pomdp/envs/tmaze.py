@@ -190,7 +190,7 @@ class TMazeSimpleEnv(gym.Env):
 
     def _reset(self):
         self._initialize()
-        print ("--- new episode ---")
+        # print ("--- new episode ---")
         return self._get_state()
 
     def _step(self, a):
@@ -240,13 +240,13 @@ class TMazeSimpleEnv(gym.Env):
         if self.y == self.length-1 and self.x == self.switch:
             rew += 0.5
             done = True
-            print ("Success")
+            # print ("Success")
             # input("")
         elif self.y == self.length-1 and self.x == -self.switch:
             rew -= 0.1
             done = True
 
-        print (a,self.x, self.y, rew)
+        # print (a,self.x, self.y, rew)
         #pdb.set_trace()
         # print (a, state, rew, done)
         # input("")
