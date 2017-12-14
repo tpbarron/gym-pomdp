@@ -37,7 +37,8 @@ class TMazeRacecarGymEnv(gym.Env):
                  isEnableSelfCollision=True,
                  isDiscrete=False,
                  renders=False,
-                 length=1):
+                 length=1,
+                 deterministic=True):
         self._timeStep = 0.01
         self._urdfRoot = urdfRoot
         self._actionRepeat = actionRepeat
@@ -55,11 +56,11 @@ class TMazeRacecarGymEnv(gym.Env):
 
         self._seed()
         #self.reset()
-        observationDim = 2
+        observationDim = 4
         observation_high = np.ones(observationDim) * 1000 #np.inf
 
         if (isDiscrete):
-            self.action_space = spaces.Discrete(9)
+            self.action_space = spaces.Discrete(3)
         else:
             action_dim = 2
             self._action_bound = 1
@@ -69,6 +70,7 @@ class TMazeRacecarGymEnv(gym.Env):
         self.observation_space = spaces.Box(-observation_high, observation_high)
         self.viewer = None
         self.length = length
+        self.deterministic = deterministic
         self.switch = None
 
     def _build_tmaze(self):
@@ -109,10 +111,12 @@ class TMazeRacecarGymEnv(gym.Env):
         for i in range(100):
             self._p.stepSimulation()
 
-        # self.switch = 1 if np.random.random() < 0.5 else -1
+        # if self.deterministic:
+            # self.switch = 1 #if np.random.random() < 0.5 else -1
+        # else:
+        self.switch = -1 if np.random.random() < 0.5 else 1
 
-        # temporariliy just drive foward
-        self.goal = np.array([self.length, 0]) #self.switch])
+        self.goal = np.array([self.length, self.switch])
         self._observation = self.getExtendedObservation()
         return np.array(self._observation)
 
@@ -124,14 +128,21 @@ class TMazeRacecarGymEnv(gym.Env):
         return [seed]
 
     def getExtendedObservation(self):
-        self._observation = [] #self._racecar.getObservation()
+        """
+        carx, cary, [carorn], signal
+        """
         carpos,carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-        # ballpos,ballorn = self._p.getBasePositionAndOrientation(self._ballUniqueId)
-        # invCarPos,invCarOrn = self._p.invertTransform(carpos,carorn)
-        # ballPosInCar,ballOrnInCar = self._p.multiplyTransforms(invCarPos,invCarOrn,ballpos,ballorn)
+        # print (carpos)
+        # print (carorn)
+        signal = [0, 0]
+        if self._envStepCounter == 0:
+            # if on first step, also give goal signal
+            signal = [1, 0] if self.switch == -1 else [0, 1]
 
-        self._observation.extend([carpos[0]/(self.length+1), carpos[1]])
-        # self._observation.extend([ballPosInCar[0],ballPosInCar[1]])
+        self._observation = []
+        self._observation.extend([carpos[0]/(self.length+1.), carpos[1]])
+        # self._observation.extend(carorn[0:3])
+        self._observation.extend(signal)
         return self._observation
 
     def _step(self, action):
@@ -140,8 +151,10 @@ class TMazeRacecarGymEnv(gym.Env):
             #self._p.resetDebugVisualizerCamera(1, 30, -40, basePos)
 
         if (self._isDiscrete):
-	        fwd = [-1,-1,-1,0,0,0,1,1,1]
-	        steerings = [-0.6,0,0.6,-0.6,0,0.6,-0.6,0,0.6]
+	        fwd = [1,1,1]
+	        steerings = [-0.6,0,0.6]
+	        # fwd = [-1,-1,-1,0,0,0,1,1,1]
+	        # steerings = [-0.6,0,0.6,-0.6,0,0.6,-0.6,0,0.6]
 	        forward = fwd[action]
 	        steer = steerings[action]
 	        realaction = [forward,steer]
@@ -184,17 +197,31 @@ class TMazeRacecarGymEnv(gym.Env):
         rgb_array = rgb_array[:, :, :3]
         return rgb_array
 
+    def _in_goal_box(self):
+        carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+        x, y, z = carpos
+        if x > self.length - 0.5 and x < self.length + 0.5:
+            if y > self.switch - 0.5 and y < self.switch + 0.5:
+                return True
+        return False
+
     def _termination(self):
+        # check if in goal box
+        if self._in_goal_box():
+            return True
         return False
 
     def _reward(self):
         """
         negative dist to goal
         """
-        carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-        carxy = np.array(carpos[0:2])
-        dist = np.linalg.norm(carxy - self.goal)
-        reward = -dist
+        if self._in_goal_box():
+            reward = 1.0
+        else:
+            carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+            carxy = np.array(carpos[0:2])
+            dist = np.linalg.norm(carxy - self.goal)
+            reward = -dist
         return reward
 
 
