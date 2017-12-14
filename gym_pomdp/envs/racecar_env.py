@@ -114,7 +114,7 @@ class TMazeRacecarGymEnv(gym.Env):
         # if self.deterministic:
             # self.switch = 1 #if np.random.random() < 0.5 else -1
         # else:
-        self.switch = -1 if np.random.random() < 0.5 else -1
+        self.switch = -1 if np.random.random() < 0.5 else 1
 
         self.goal = np.array([self.length, self.switch])
         self._observation = self.getExtendedObservation()
