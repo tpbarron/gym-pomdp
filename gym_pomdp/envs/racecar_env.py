@@ -134,8 +134,10 @@ class TMazeRacecarGymEnv(gym.Env):
         carpos,carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
         # print (carpos)
         # print (carorn)
-        signal = [1, 0] if self.switch == -1 else [0, 1]
-        # input("")
+        signal = [0, 0]
+        if self._envStepCounter == 0:
+            # if on first step, also give goal signal
+            signal = [1, 0] if self.switch == -1 else [0, 1]
 
         self._observation = []
         self._observation.extend([carpos[0]/(self.length+1.), carpos[1]])
