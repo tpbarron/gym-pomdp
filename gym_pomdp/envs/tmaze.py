@@ -251,3 +251,43 @@ class TMazeSimpleEnv(gym.Env):
         # print (a, state, rew, done)
         # input("")
         return state, rew, done, {}
+
+
+class StochasticTMazeSimpleEnv(TMazeSimpleEnv):
+    """
+    Same structure as TMaze but location of signal is stochastic
+
+    Define T maze
+
+    XOY
+     O
+     O
+     O
+     O
+     S
+
+    If start signal is 0, then set goal to be X, if start signal is 1,
+    set goal to be Y
+
+    Discrete actions of forward / backward / left / right
+    """
+
+    def __init__(self, length=10):
+        super(StochasticTMazeSimpleEnv, self).__init__(length=length)
+        # 1 means right goal +x, -1 means left goal -1
+        self.switch_position = 0
+
+    def _initialize(self):
+        super()._initialize()
+        self.switch_position = np.random.choice(np.arange(self.length))
+
+    def _get_state(self):
+        if self.y == self.switch_position:
+            state = [0, 1, 0]
+            state[self.switch + 1] = 1
+        elif self.y != self.length - 1:
+            # y > 0
+            state = [1, 0, 1]
+        else: # y = self.length - 1
+            state = [0, 1, 0]
+        return np.array(state)
