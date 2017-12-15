@@ -140,7 +140,7 @@ class TMazeRacecarGymEnv(gym.Env):
             signal = [1, 0] if self.switch == -1 else [0, 1]
 
         self._observation = []
-        self._observation.extend([carpos[0]/(self.length+1.), carpos[1]])
+        self._observation.extend([carpos[0]/(self.length+1.), (carpos[1]+1)/2.])
         # self._observation.extend(carorn[0:3])
         self._observation.extend(signal)
         return self._observation
