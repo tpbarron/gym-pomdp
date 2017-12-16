@@ -82,21 +82,31 @@ class TMazeRacecarGymEnv(gym.Env):
         self.r_type = r_type
 
     def _build_tmaze(self):
+        self.wall_block_ids = []
+
         self._p.setAdditionalSearchPath(os.path.join(os.path.dirname(__file__), "assets/")) #used by loadURDF
-        self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[-1, 0, 0.5])
+        cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[-1, 0, 0.5])
+        self.wall_block_ids.append(cube_id)
 
         for i in range(-1, self.length):
-            self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[i, 1, 0.5])
-            self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[i, -1, 0.5])
+            cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[i, 1, 0.5])
+            self.wall_block_ids.append(cube_id)
+            cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[i, -1, 0.5])
+            self.wall_block_ids.append(cube_id)
 
-        self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length, -2, 0.5])
-        self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length, 2, 0.5])
+        cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length, -2, 0.5])
+        self.wall_block_ids.append(cube_id)
+        cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length, 2, 0.5])
+        self.wall_block_ids.append(cube_id)
 
-        self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length-1, -2, 0.5])
-        self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length-1, 2, 0.5])
+        cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length-1, -2, 0.5])
+        self.wall_block_ids.append(cube_id)
+        cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length-1, 2, 0.5])
+        self.wall_block_ids.append(cube_id)
 
         for i in range(5):
-            self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length+1, i-2, 0.5])
+            cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[self.length+1, i-2, 0.5])
+            self.wall_block_ids.append(cube_id)
 
     def _reset(self):
         self._p.resetSimulation()
@@ -233,15 +243,40 @@ class TMazeRacecarGymEnv(gym.Env):
                 other = True
         return own, other
 
+    def _is_wall_contact(self):
+        contacts = self._p.getContactPoints(self._racecar.racecarUniqueId)
+        # print (contacts)
+        for c in contacts:
+            # c[2] is bodyB id and c[-2] is distance
+            if c[2] in self.wall_block_ids and c[-2] < 1e-8:
+                return True
+        return False
+
+    def _closest_wall_dist(self):
+        closest_dist = np.inf
+        for wid in self.wall_block_ids:
+            closest = self._p.getClosestPoints(self._racecar.racecarUniqueId, wid, 10.0)
+            for c in closest:
+                # print (c[-2], closest_dist)
+                # input("")
+                if c[-2] < closest_dist:
+                    closest_dist = c[-2]
+        if closest_dist < 0:
+            closest_dist = 1e-8
+        return closest_dist
+
     def _termination(self):
         # check if in goal box
         own, other = self._in_goal_box()
         if own:
             print ("Car reached goal")
             return True
-        # elif other:
-            # print ("Car wrong goal")
-            # return True
+        elif other:
+            print ("Car wrong goal")
+            return True
+        if self._is_wall_contact():
+            print ("Wall contact")
+            return True
         return False
 
     # def _reward(self):
@@ -306,11 +341,12 @@ class TMazeRacecarGymEnv(gym.Env):
 
     def _reward(self):
         # print ("using r_type: ", self.r_type)
-        if self.r_type == 'neg_dist':
-            return self._reward_neg_dist()
-        elif self.r_type == 'neg_dist_shaped':
-            return self._reward_neg_dist_shaped()
-        raise ValueError
+        return self._reward_neg_dist_wall_potential()
+        # if self.r_type == 'neg_dist':
+        #     return self._reward_neg_dist()
+        # elif self.r_type == 'neg_dist_shaped':
+        #     return self._reward_neg_dist_shaped()
+        # raise ValueError
 
     def _reward_neg_dist(self):
         """
@@ -323,6 +359,33 @@ class TMazeRacecarGymEnv(gym.Env):
             carxy = np.array(carpos[0:2])
             dist = np.linalg.norm(carxy - self.goal)
             reward = -dist
+        return reward
+
+    def _reward_neg_dist_wall_potential(self):
+        """
+        negative dist to goal
+        """
+        reward = 0.0
+        carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+        x, y, z = carpos
+
+        if self._in_goal_box()[0]:
+            reward += self.length # make reward proportional to length
+        else:
+            carxy = np.array(carpos[0:2])
+            dist = np.linalg.norm(carxy - self.goal)
+            reward = -dist
+
+            if self._is_wall_contact():
+                reward -= 1.0
+                
+            # add wall potential field
+            # very large at wall, 1 in center
+            # wall_dist = self._closest_wall_dist()
+            # print ("Wall dist: ", wall_dist)
+            # lr_wall_pot = 0.5/wall_dist
+            # reward -= lr_wall_pot
+
         return reward
 
     def _reward_neg_dist_shaped(self):
@@ -361,10 +424,11 @@ if __name__ == '__main__':
         env.render()
         done = False
 
-        input("")
+        # input("")
         while not done:
             env.render()
             obs, rew, done, info = env.step(0) #env.action_space.sample())
+            print ("Reward: ", rew)
             import time
             time.sleep(0.1)
 
