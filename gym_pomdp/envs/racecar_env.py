@@ -19,7 +19,8 @@ import numpy as np
 import pybullet
 import pybullet_data
 import pybullet_envs.bullet.bullet_client as bullet_client
-import pybullet_envs.bullet.racecar as racecar
+# import pybullet_envs.bullet.racecar as racecar
+from gym_pomdp.envs import racecar as racecar
 
 RENDER_HEIGHT = 720
 RENDER_WIDTH = 960
@@ -39,9 +40,13 @@ class TMazeRacecarGymEnv(gym.Env):
                  renders=False,
                  length=1,
                  deterministic=True,
-                 r_type='neg_dist'):
+                 r_type='neg_dist',
+                 lod=0):
         self._timeStep = 0.01
         self._urdfRoot = urdfRoot
+        self._lod = lod
+        if lod > 0:
+            actionRepeat = 10
         self._actionRepeat = actionRepeat
         self._isEnableSelfCollision = isEnableSelfCollision
         self._observation = []
@@ -57,7 +62,7 @@ class TMazeRacecarGymEnv(gym.Env):
 
         self._seed()
         #self.reset()
-        observationDim = 4
+        observationDim = 5
         observation_high = np.ones(observationDim) * 1000 #np.inf
 
         if (isDiscrete):
@@ -75,7 +80,7 @@ class TMazeRacecarGymEnv(gym.Env):
         self.switch = None
         self.max_x, self.min_y, self.max_y = None, None, None
         self.r_type = r_type
-        
+
     def _build_tmaze(self):
         self._p.setAdditionalSearchPath(os.path.join(os.path.dirname(__file__), "assets/")) #used by loadURDF
         self.cube_id = self._p.loadURDF("cube_black.urdf", basePosition=[-1, 0, 0.5])
@@ -108,7 +113,7 @@ class TMazeRacecarGymEnv(gym.Env):
         self._build_tmaze()
 
         self._p.setGravity(0,0,-10)
-        self._racecar = racecar.Racecar(self._p,urdfRootPath=self._urdfRoot, timeStep=self._timeStep)
+        self._racecar = racecar.Racecar(self._p,urdfRootPath=self._urdfRoot, timeStep=self._timeStep, lod=self._lod)
         self._envStepCounter = 0
         for i in range(100):
             self._p.stepSimulation()
@@ -145,7 +150,8 @@ class TMazeRacecarGymEnv(gym.Env):
 
         self._observation = []
         # if make this relative normed x and relative normed y then should be able to generalize
-        self._observation.extend([carpos[0]/(self.length+0.5), (carpos[1]+1)/2.])
+        # also add zorientation
+        self._observation.extend([carpos[0]/(self.length+0.5), (carpos[1]+1)/2., (carorn[2]+1)/2.])
         # self._observation.extend(carorn[0:3])
         self._observation.extend(signal)
         return self._observation
@@ -233,9 +239,9 @@ class TMazeRacecarGymEnv(gym.Env):
         if own:
             print ("Car reached goal")
             return True
-        elif other:
-            print ("Car wrong goal")
-            return True
+        # elif other:
+            # print ("Car wrong goal")
+            # return True
         return False
 
     # def _reward(self):
@@ -299,6 +305,7 @@ class TMazeRacecarGymEnv(gym.Env):
     #     return reward
 
     def _reward(self):
+        # print ("using r_type: ", self.r_type)
         if self.r_type == 'neg_dist':
             return self._reward_neg_dist()
         elif self.r_type == 'neg_dist_shaped':
@@ -354,17 +361,18 @@ if __name__ == '__main__':
         env.render()
         done = False
 
-        for i in range(2):
+        input("")
+        while not done:
             env.render()
-            obs, rew, done, info = env.step(7) #env.action_space.sample())
+            obs, rew, done, info = env.step(0) #env.action_space.sample())
             import time
             time.sleep(0.1)
 
-        for i in count(1):
-        # while not done:
-            env.render()
-            obs, rew, done, info = env.step(6) #env.action_space.sample())
-            import time
-            time.sleep(0.1)
+            # for i in count(1):
+            # # while not done:
+            #     env.render()
+            #     obs, rew, done, info = env.step(6) #env.action_space.sample())
+            #     import time
+            #     time.sleep(0.1)
 
             input("")
