@@ -115,6 +115,7 @@ class TMazeRacecarGymEnv(gym.Env):
             # self.switch = 1 #if np.random.random() < 0.5 else -1
         # else:
         self.switch = -1 if np.random.random() < 0.5 else 1
+        print ("Goal: y = ", self.switch)
 
         self.goal = np.array([self.length, self.switch])
         self._observation = self.getExtendedObservation()
@@ -141,7 +142,8 @@ class TMazeRacecarGymEnv(gym.Env):
             signal = [1, 0] if self.switch == -1 else [0, 1]
 
         self._observation = []
-        self._observation.extend([carpos[0]/(self.length+1.), carpos[1]])
+        # if make this relative normed x and relative normed y then should be able to generalize
+        self._observation.extend([carpos[0]/(self.length+0.5), carpos[1]])
         # self._observation.extend(carorn[0:3])
         self._observation.extend(signal)
         return self._observation
@@ -178,12 +180,13 @@ class TMazeRacecarGymEnv(gym.Env):
         # compute reward based on movement before updated max and min x,y
         reward = self._reward()
 
+        # check movement bounds
         x, y, z = carPos
         if x > self.max_x:
             self.max_x = x
-        if x > self.length + 0.5 and y > self.max_y:
+        if x > self.length - 0.5 and y > self.max_y:
             self.max_y = y
-        elif x > self.length + 0.5 and y < self.min_y:
+        elif x > self.length - 0.5 and y < self.min_y:
             self.min_y = y
 
         done = self._termination()
@@ -224,35 +227,49 @@ class TMazeRacecarGymEnv(gym.Env):
 
     def _termination(self):
         # check if in goal box
-        if self._in_goal_box()[0]:
+        own, other = self._in_goal_box()
+        if own:
             print ("Car reached goal")
+            return True
+        elif other:
+            print ("Car wrong goal")
             return True
         return False
 
-    def _reward(self):
-        """
-        negative dist to goal
-        """
-        own, other = self._in_goal_box()
-        if own:
-            reward = 1.0
-        else:
-            # if not in goal box can have negative for being in wrong positoin
-            # or reward for moevement
-            if other:
-                reward = -1.0
-            else:
-                reward = 0.0
-                carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-                x, y, z = carpos
-                if x > self.max_x: # along path
-                    reward += 0.1
-                if self.switch == -1 and y < self.min_y and x > self.length + 0.5:
-                    reward += 0.1
-                elif self.switch == 1 and y > self.max_y and x > self.length + 0.5:
-                    reward += 0.1
-
-        return reward
+    # def _reward(self):
+    #     """
+    #     negative dist to goal
+    #     """
+    #     own, other = self._in_goal_box()
+    #     if own:
+    #         reward = 1.0
+    #     elif other:
+    #         # if not in goal box can have negative for being in wrong positoin
+    #         # or reward for moevement
+    #         reward = -1.0
+    #     else:
+    #         # if not at either goal, check movement
+    #         reward = 0.0
+    #         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+    #         x, y, z = carpos
+    #         if x > self.max_x and x < self.length: # along path
+    #             # if moving foward
+    #             reward += 0.1
+    #         if y < self.min_y and x > self.length - 0.5:
+    #             if self.switch == -1:
+    #                 # if moving to neg y after reaching proper x
+    #                 reward += 0.1
+    #             elif self.switch == 1:
+    #                 # moving wrong dir
+    #                 reward -= 0.1
+    #         elif y > self.max_y and x > self.length - 0.5:
+    #             if self.switch == 1:
+    #                 # if moving to pos y after reaching proper x
+    #                 reward += 0.1
+    #             elif self.switch == -1:
+    #                 reward -= 0.1
+    #
+    #     return reward
 
     # def _reward(self):
     #     """
@@ -266,6 +283,33 @@ class TMazeRacecarGymEnv(gym.Env):
     #         dist = np.linalg.norm(carxy - self.goal)
     #         reward = -dist
     #     return reward
+
+
+    def _reward(self):
+        """
+        negative dist to goal
+        """
+        reward = 0.0
+        own, other = self._in_goal_box()
+        if own:
+            reward += 1.0
+        elif other:
+            # if not in goal box can have negative for being in wrong positoin
+            # or reward for moevement
+            reward += -1.0
+
+        if not own:
+            carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+            carxy = np.array(carpos[0:2])
+            if carxy[0] < self.length - 0.5:
+                tmp_goal = np.array([self.length, 0])
+                dist = np.linalg.norm(carxy - tmp_goal) + np.sqrt(2.)
+            else:
+                # if at last block
+                dist = np.linalg.norm(carxy - self.goal)
+            reward += -dist
+
+        return reward
 
 
 from itertools import count
