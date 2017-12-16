@@ -341,7 +341,11 @@ class TMazeRacecarGymEnv(gym.Env):
 
     def _reward(self):
         # print ("using r_type: ", self.r_type)
-        return self._reward_neg_dist_wall_potential()
+        if self.r_type == 'neg_dist':
+            return self._reward_neg_dist_wall_potential()
+        elif self.r_type == 'neg_dist_shaped':
+            return self._reward_neg_dist_shaped()
+        raisei ValueError
         # if self.r_type == 'neg_dist':
         #     return self._reward_neg_dist()
         # elif self.r_type == 'neg_dist_shaped':
@@ -378,7 +382,7 @@ class TMazeRacecarGymEnv(gym.Env):
 
             if self._is_wall_contact():
                 reward -= 1.0
-                
+
             # add wall potential field
             # very large at wall, 1 in center
             # wall_dist = self._closest_wall_dist()
@@ -410,6 +414,9 @@ class TMazeRacecarGymEnv(gym.Env):
             else:
                 # if at last block
                 dist = np.linalg.norm(carxy - self.goal)
+
+            if self._is_wall_contact():
+                reward -= 1.0
             reward += -dist
 
         return reward
