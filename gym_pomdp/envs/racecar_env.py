@@ -304,47 +304,14 @@ class TMazeRacecarGymEnv(gym.Env):
     #
     #     return reward
 
-    # def _reward(self):
-    #     """
-    #     negative dist to goal
-    #     """
-    #     own, other = self._in_goal_box()
-    #     if own:
-    #         reward = 1.0
-    #     elif other:
-    #         # if not in goal box can have negative for being in wrong positoin
-    #         # or reward for moevement
-    #         reward = -1.0
-    #     else:
-    #         # if not at either goal, check movement
-    #         reward = 0.0
-    #         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-    #         x, y, z = carpos
-    #         if x > self.max_x and x < self.length: # along path
-    #             # if moving foward
-    #             reward += 0.1
-    #         if y < self.min_y and x > self.length - 0.5:
-    #             if self.switch == -1:
-    #                 # if moving to neg y after reaching proper x
-    #                 reward += 0.1
-    #             elif self.switch == 1:
-    #                 # moving wrong dir
-    #                 reward -= 0.1
-    #         elif y > self.max_y and x > self.length - 0.5:
-    #             if self.switch == 1:
-    #                 # if moving to pos y after reaching proper x
-    #                 reward += 0.1
-    #             elif self.switch == -1:
-    #                 reward -= 0.1
-    #
-    #     return reward
-
     def _reward(self):
         # print ("using r_type: ", self.r_type)
         if self.r_type == 'neg_dist':
             return self._reward_neg_dist_wall_potential()
         elif self.r_type == 'neg_dist_shaped':
             return self._reward_neg_dist_shaped()
+        elif self.r_type == 'rew_pos_movement':
+            return self._reward_pos_movement_wall_cost()
         raisei ValueError
         # if self.r_type == 'neg_dist':
         #     return self._reward_neg_dist()
@@ -352,18 +319,56 @@ class TMazeRacecarGymEnv(gym.Env):
         #     return self._reward_neg_dist_shaped()
         # raise ValueError
 
-    def _reward_neg_dist(self):
+    def _reward_pos_movement_wall_cost(self):
         """
         negative dist to goal
         """
-        if self._in_goal_box()[0]:
+        own, other = self._in_goal_box()
+
+        if own:
             reward = 1.0
+        elif other:
+            # if not in goal box can have negative for being in wrong positoin
+            # or reward for moevement
+            reward = -1.0
         else:
+            # if not at either goal, check movement
+            reward = 0.0
+            if self._is_wall_contact():
+                reward -= 1.0
             carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
-            carxy = np.array(carpos[0:2])
-            dist = np.linalg.norm(carxy - self.goal)
-            reward = -dist
+            x, y, z = carpos
+            if x > self.max_x and x < self.length: # along path
+                # if moving foward
+                reward += 0.1
+            if y < self.min_y and x > self.length - 0.5:
+                if self.switch == -1:
+                    # if moving to neg y after reaching proper x
+                    reward += 0.1
+                elif self.switch == 1:
+                    # moving wrong dir
+                    reward -= 0.1
+            elif y > self.max_y and x > self.length - 0.5:
+                if self.switch == 1:
+                    # if moving to pos y after reaching proper x
+                    reward += 0.1
+                elif self.switch == -1:
+                    reward -= 0.1
+
         return reward
+
+    # def _reward_neg_dist(self):
+    #     """
+    #     negative dist to goal
+    #     """
+    #     if self._in_goal_box()[0]:
+    #         reward = 1.0
+    #     else:
+    #         carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
+    #         carxy = np.array(carpos[0:2])
+    #         dist = np.linalg.norm(carxy - self.goal)
+    #         reward = -dist
+    #     return reward
 
     def _reward_neg_dist_wall_potential(self):
         """
@@ -381,14 +386,7 @@ class TMazeRacecarGymEnv(gym.Env):
             reward = -dist
 
             if self._is_wall_contact():
-                reward -= 1.0
-
-            # add wall potential field
-            # very large at wall, 1 in center
-            # wall_dist = self._closest_wall_dist()
-            # print ("Wall dist: ", wall_dist)
-            # lr_wall_pot = 0.5/wall_dist
-            # reward -= lr_wall_pot
+                reward -= 100.0
 
         return reward
 
@@ -416,7 +414,7 @@ class TMazeRacecarGymEnv(gym.Env):
                 dist = np.linalg.norm(carxy - self.goal)
 
             if self._is_wall_contact():
-                reward -= 1.0
+                reward -= 100.0
             reward += -dist
 
         return reward
