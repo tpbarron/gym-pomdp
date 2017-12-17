@@ -326,16 +326,16 @@ class TMazeRacecarGymEnv(gym.Env):
         own, other = self._in_goal_box()
 
         if own:
-            reward = 10.0
+            reward = 1.0
         elif other:
             # if not in goal box can have negative for being in wrong positoin
             # or reward for moevement
-            reward = -10.0
+            reward = -1.0
         else:
             # if not at either goal, check movement
             reward = 0.0
             if self._is_wall_contact():
-                reward -= 10.0
+                reward -= 1.0
             carpos, carorn = self._p.getBasePositionAndOrientation(self._racecar.racecarUniqueId)
             x, y, z = carpos
             if x > self.max_x and x < self.length: # along path
