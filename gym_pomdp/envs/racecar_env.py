@@ -161,7 +161,7 @@ class TMazeRacecarGymEnv(gym.Env):
         self._observation = []
         # if make this relative normed x and relative normed y then should be able to generalize
         # also add zorientation
-        self._observation.extend([carpos[0]/(self.length+0.5), (carpos[1]+1)/2., (carorn[2]+1)/2.])
+        self._observation.extend([carpos[0]/(self.length+0.5), (carpos[1]+1)/2.]) #, (carorn[2]+1)/2.])
         # self._observation.extend(carorn[0:3])
         self._observation.extend(signal)
         return self._observation
