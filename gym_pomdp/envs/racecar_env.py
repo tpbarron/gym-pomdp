@@ -345,7 +345,7 @@ class TMazeRacecarGymEnv(gym.Env):
             return self._reward_neg_dist_wall_potential()
         elif self.r_type == 'neg_dist_shaped':
             return self._reward_neg_dist_shaped()
-        raisei ValueError
+        raise ValueError
         # if self.r_type == 'neg_dist':
         #     return self._reward_neg_dist()
         # elif self.r_type == 'neg_dist_shaped':
