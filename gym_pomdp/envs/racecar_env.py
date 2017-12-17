@@ -62,7 +62,7 @@ class TMazeRacecarGymEnv(gym.Env):
 
         self._seed()
         #self.reset()
-        observationDim = 5
+        observationDim = 4
         observation_high = np.ones(observationDim) * 1000 #np.inf
 
         if (isDiscrete):
